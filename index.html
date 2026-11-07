@@ -791,8 +791,20 @@ const CONFIG = {
   WEB3FORMS_KEY: "00f27bb7-7572-45eb-bd29-66b135110d98",
 
   // Reserva: se não houver chave do Web3Forms, tenta enviar pelo FormSubmit.co para este e-mail.
-  LEADS_EMAIL: "psimilenavidal4@gmail.com"
+  LEADS_EMAIL: "psimilenavidal4@gmail.com",
+
+  // Endereço do Apps Script da planilha de inscrições (Google Sheets). Vazio = não envia.
+  SHEETS_URL: "https://script.google.com/macros/s/AKfycbykgJTYienamklt7dVs3ZyCt88U-uo9oS_Rctck0luOFnQiC4Lt6Ag85DdcxSPhCR5D/exec"
 };
+/* ---------- Planilha (Google Sheets) ---------- */
+const enviarPlanilha = (dados) => {
+  if (!CONFIG.SHEETS_URL) return Promise.resolve();
+  const ctrl = new AbortController(); const t = setTimeout(() => ctrl.abort(), 6000);
+  return fetch(CONFIG.SHEETS_URL, { method: "POST", mode: "no-cors", signal: ctrl.signal,
+    headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify(dados) })
+    .catch(() => {}).finally(() => clearTimeout(t));
+};
+
 
 /* ---------- Depoimentos ----------
    Cole aqui os depoimentos reais (com autorização). Enquanto a lista
@@ -906,6 +918,7 @@ form.addEventListener("submit", async (e) => {
       return r.ok;
     } catch (err) { return false; } finally { clearTimeout(t); }
   };
+  const planilha = enviarPlanilha({ origem: "mentoria", ...data });
   let enviado = false;
   if (CONFIG.WEB3FORMS_KEY) {
     enviado = await enviar("https://api.web3forms.com/submit", {
@@ -916,6 +929,8 @@ form.addEventListener("submit", async (e) => {
   if (!enviado && CONFIG.LEADS_EMAIL) {
     enviado = await enviar(`https://formsubmit.co/ajax/${CONFIG.LEADS_EMAIL}`, { ...data, _subject: assunto, _template: "table" });
   }
+
+  await planilha;
 
   const waMsg = waLink(`Olá! Acabei de me inscrever na Mentoria Ferramenta.\n\nNome: ${data.nome}\nWhatsApp: ${data.whatsapp}\nE-mail: ${data.email}`);
   const pay = CONFIG.PAYMENT_URL;
